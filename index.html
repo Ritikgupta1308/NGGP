@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NGGP</title>
+
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body{
+  margin:0;
+  font-family:Segoe UI, Roboto, Arial;
+  background:#0a0d10;
+  color:#e6e6e6;
+}
+.container{max-width:1300px;margin:auto;padding:16px}
+h1{text-align:center;color:#ffd700;margin:4px 0}
+.sub{text-align:center;color:#9aa0a6;font-size:15px}
+.top{text-align:center;color:#9aa0a6;font-size:14px;margin-bottom:18px}
+.grid{display:grid;grid-template-columns:1.2fr 1fr;gap:20px}
+@media(max-width:900px){.grid{grid-template-columns:1fr}}
+.card{background:#11151a;border-radius:16px;padding:18px;box-shadow:0 0 25px rgba(0,0,0,.7)}
+.card h3{margin-top:0;color:#ffd700;border-bottom:1px solid #222;padding-bottom:6px}
+.subhead{display:grid;grid-template-columns:2fr 1fr 1fr;font-size:13px;color:#9aa0a6;margin-top:8px}
+.rate-row{display:grid;grid-template-columns:2fr 1fr 1fr;margin:12px 0;font-size:15px}
+.live{color:#00e676;font-weight:600;text-align:right}
+.buy{color:#ffb300;font-weight:600;text-align:right}
+.gap{height:14px}
+marquee{color:#aaa;font-size:13px;margin-top:10px}
+select{background:#0b0e12;color:#ffd700;border:1px solid #333;border-radius:8px;padding:12px;font-size:16px;width:100%;margin-top:6px}
+.coin table{width:100%;border-collapse:collapse;margin-top:12px}
+.coin td{padding:10px;border-bottom:1px solid #1f2933;font-size:15px}
+.coin td:last-child{text-align:right;font-weight:600}
+footer{text-align:center;color:#777;margin-top:26px;font-size:13px}
+</style>
+</head>
+
+<body>
+<div class="container">
+
+<h1>New Gupta Gold Palace</h1>
+<div class="sub">(Singharawale)</div>
+
+<div class="top">
+  <span id="today"></span> | Last Updated: <span id="updated"></span>
+</div>
+
+<div class="grid">
+
+<div class="card">
+  <h3>Rate per 10gm</h3>
+
+  <div class="subhead">
+    <div></div>
+    <div style="text-align:right">Live Rate</div>
+    <div style="text-align:right">Buyback Rate</div>
+  </div>
+
+  <div id="jewellery"></div>
+
+  <marquee>*The above rates are without GST and making charges*</marquee>
+</div>
+
+<div class="card coin">
+  <h3>Coin Calculator</h3>
+
+  <label>Select Coin</label>
+  <select id="coinSelect"></select>
+
+  <label>Calculation Type</label>
+  <select id="mode">
+    <option value="live">Live Price</option>
+    <option value="exchange">Exchange Value</option>
+    <option value="buyback">Buyback Value</option>
+  </select>
+
+  <table id="coinTable"></table>
+</div>
+
+</div>
+
+<footer>Developer: Ritik Gupta</footer>
+</div>
+
+<script>
+const API_URL = "https://script.google.com/macros/s/AKfycbxDNJF6DEjQfU9ps0sF6gAnA3O6te7p0oplrc8JfCl1gkCAq0zeTOu81Ip3J7EbHEuP/exec";
+
+let DATA = null;
+
+function loadData(){
+  fetch(API_URL + "?t=" + Date.now())
+    .then(r=>r.json())
+    .then(d=>{
+      DATA = d;
+      updated.innerText = d.updated;
+      renderJewellery();
+      renderCoins();
+    });
+}
+
+function renderJewellery(){
+  jewellery.innerHTML = "";
+
+  const gBB = Number(DATA.buyback_gold || 0);
+  const sBB = Number(DATA.buyback_silver || 0);
+
+  const list = [
+    ["22K Gold Hallmark Jewellery", DATA.jewellery.k22, gBB],
+    ["23K Gold Jewellery", DATA.jewellery.k23, gBB],
+    ["24K Gold Jewellery", DATA.jewellery.k24, gBB],
+    ["gap"],
+    ["Silver Jewellery", DATA.jewellery.silver/100, sBB]
+  ];
+
+  list.forEach(j=>{
+    if(j[0]==="gap"){jewellery.innerHTML+=`<div class="gap"></div>`;return;}
+    const live=Math.round(j[1]);
+    const buy=Math.round(live-live*j[2]/100);
+    jewellery.innerHTML+=`
+      <div class="rate-row">
+        <div>${j[0]}</div>
+        <div class="live">₹ ${live}</div>
+        <div class="buy">₹ ${buy}</div>
+      </div>`;
+  });
+}
+
+function renderCoins(){
+  if(coinSelect.options.length===0){
+    DATA.coins.forEach((c,i)=>coinSelect.add(new Option(c.name,i)));
+  }
+  updateCoin();
+}
+
+function updateCoin(){
+  const c = DATA.coins[coinSelect.value];
+  coinTable.innerHTML="";
+
+  let rate10=c.rate,total=c.total;
+
+  if(mode.value==="exchange"){
+    rate10=(c.exchange*10)/c.weight;
+    total=c.exchange;
+  }
+
+  if(mode.value==="buyback"){
+    const base=(c.rate*c.weight)/10;
+    total=base-base*(DATA.buyback_gold||0)/100;
+    rate10=(total*10)/c.weight;
+  }
+
+  let rows=[["Weight",c.weight+" gm"],["Rate per 10gm","₹ "+Math.round(rate10)]];
+  if(mode.value==="live"){rows.push(["Making","₹ "+Math.round(c.making)],["GST","₹ "+Math.round(c.gst)]);}
+  rows.push(["Total","₹ "+Math.round(total)]);
+
+  rows.forEach(r=>coinTable.innerHTML+=`<tr><td>${r[0]}</td><td>${r[1]}</td></tr>`);
+}
+
+coinSelect.onchange=updateCoin;
+mode.onchange=updateCoin;
+
+loadData();
+setInterval(loadData, 5000); // 🔥 5 SECOND REFRESH
+today.innerText=new Date().toLocaleDateString("en-IN",{weekday:"long",day:"numeric",month:"short",year:"numeric"});
+</script>
+
+<script>
+if('serviceWorker' in navigator){
+  navigator.serviceWorker.register('service-worker.js');
+}
+</script>
+
+</body>
+</html>
